@@ -121,3 +121,54 @@ def add_rotation_features(df: pd.DataFrame, rotation: pd.DataFrame) -> pd.DataFr
     out["turnaround_min"] = out["turnaround_min"].fillna(out["turnaround_min"].median())
     out["inbound_slack_min"] = out["inbound_slack_min"].fillna(out["turnaround_min"])
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Weather features
+# --------------------------------------------------------------------------- #
+WEATHER_VARS = ["temperature_2m", "relative_humidity_2m", "precipitation", "snowfall",
+                "cloud_cover", "wind_speed_10m", "wind_gusts_10m"]
+
+
+def weather_severity(code: pd.Series) -> pd.Series:
+    """Collapse WMO weather codes into an ordinal severity scale.
+
+    0 clear/cloudy, 1 drizzle, 2 rain, 3 heavy rain, 4 snow, 5 heavy snow, 6 thunderstorm.
+    """
+    bins = {0: 0, 1: 0, 2: 0, 3: 0, 45: 1, 48: 1, 51: 1, 53: 1, 55: 1, 61: 2, 63: 2, 65: 3,
+            80: 2, 81: 2, 82: 3, 71: 4, 73: 4, 75: 5, 77: 4, 85: 4, 86: 5, 95: 6, 96: 6, 99: 6}
+    return code.map(bins).fillna(0).astype(np.int8)
+
+
+def prepare_weather(weather: pd.DataFrame) -> pd.DataFrame:
+    """Hourly weather per airport plus short rolling windows (rain/snow building up)."""
+    w = weather.sort_values(["airport", "time"]).copy()
+    w["wx_severity"] = weather_severity(w["weather_code"])
+    g = w.groupby("airport", sort=False)
+    w["precip_3h"] = g["precipitation"].transform(lambda s: s.rolling(3, min_periods=1).sum())
+    w["snow_3h"] = g["snowfall"].transform(lambda s: s.rolling(3, min_periods=1).sum())
+    w["gust_max_3h"] = g["wind_gusts_10m"].transform(lambda s: s.rolling(3, min_periods=1).max())
+    # Daily totals at the airport capture all-day disruption (ground stops, de-icing).
+    w["date"] = w["time"].dt.normalize()
+    w["precip_day"] = w.groupby(["airport", "date"])["precipitation"].transform("sum")
+    w["snow_day"] = w.groupby(["airport", "date"])["snowfall"].transform("sum")
+    w["severity_day_max"] = w.groupby(["airport", "date"])["wx_severity"].transform("max")
+    return w.drop(columns=["weather_code", "date"])
+
+
+def add_weather_features(df: pd.DataFrame, weather: pd.DataFrame) -> pd.DataFrame:
+    """Join origin weather at the departure hour and destination weather at the arrival hour."""
+    w = prepare_weather(weather)
+    cols = [c for c in w.columns if c not in ("airport", "time")]
+
+    df = df.copy()
+    df["_dep_ts"] = df["flight_date"] + pd.to_timedelta(df["dep_hour"], unit="h")
+    # Red-eyes land the next calendar day.
+    arr_date = df["flight_date"] + pd.to_timedelta((df["crs_arr_min"] < df["crs_dep_min"]).astype(int), unit="D")
+    df["_arr_ts"] = arr_date + pd.to_timedelta(df["arr_hour"], unit="h")
+
+    origin_w = w.rename(columns={"airport": "origin", "time": "_dep_ts", **{c: f"origin_{c}" for c in cols}})
+    dest_w = w.rename(columns={"airport": "dest", "time": "_arr_ts", **{c: f"dest_{c}" for c in cols}})
+    df = df.merge(origin_w, on=["origin", "_dep_ts"], how="left")
+    df = df.merge(dest_w, on=["dest", "_arr_ts"], how="left")
+    return df.drop(columns=["_dep_ts", "_arr_ts"])
