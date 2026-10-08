@@ -198,6 +198,26 @@ gamma, L2 and feature subsampling. Full results are in
   <img src="reports/figures/feature_importance_departure.png" width="60%" alt="Feature importance">
 </p>
 
+### Where the model struggles
+
+Accuracy depends heavily on how late the flight leaves:
+- **Easy cases:** 95% accuracy for on-time departures and nearly 100% for departures 45+ minutes late.
+- **Hard band:** flights that leave **10–30 minutes late** (48,872 June flights, 41% of them arrive late).
+  Whether they arrive late depends on schedule padding, destination congestion and weather.
+
+In the hard band:
+- the simple rule *"departed 15+ min late ⇒ arrives late"* gets **60.2%** accuracy;
+- the tuned model gets **70.0%** (ROC-AUC 0.756).
+
+That band is where the engineered features earn their keep.
+
+<p align="center">
+  <img src="reports/figures/accuracy_by_dep_delay.png" width="70%" alt="Accuracy by departure delay">
+</p>
+
+Predicted probabilities are close to calibrated: the mean predicted probability on June is 0.287, against an
+actual delay rate of 0.293. Full analysis is in [`notebooks/02_modeling.ipynb`](notebooks/02_modeling.ipynb).
+
 ### The harder variant: predicting before departure
 
 Without the flight's own departure delay, the task is substantially harder. Here the gap between linear and
@@ -213,6 +233,7 @@ tree models widens, because the remaining signal (propagation, congestion, weath
 | Decision Tree | 78.2% | 0.796 | 0.732 |
 | Logistic Regression | 75.3% | 0.786 | 0.711 |
 | SVM (RBF) | 76.5% | 0.778 | 0.721 |
+| **XGBoost, tuned (full training data)** | **80.7%** | **0.837** | **0.763** |
 
 ---
 
