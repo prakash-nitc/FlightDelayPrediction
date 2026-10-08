@@ -22,6 +22,13 @@ TOP_N_AIRPORTS = 50
 DELAY_THRESHOLD_MIN = 15
 TARGET = "IS_DELAYED"
 
+# --- Prediction point -------------------------------------------------------
+# "departure": predict arrival delay at the moment the flight pushes back, so the
+#              actual departure delay is a known input (used for gate/connection
+#              planning at the destination).
+# "pre_departure": only schedule, weather, inbound-aircraft and airport-state info.
+PREDICTION_POINT = "departure"
+
 # --- Modelling --------------------------------------------------------------
 RANDOM_STATE = 42
 # Time-based split: train on Jan-Apr, validate on May, test on June.

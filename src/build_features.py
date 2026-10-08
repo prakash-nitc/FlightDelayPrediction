@@ -8,7 +8,7 @@ import time
 
 import pandas as pd
 
-from src.config import PROCESSED_DIR, RAW_DIR, TARGET
+from src.config import PREDICTION_POINT, PROCESSED_DIR, RAW_DIR, TARGET
 from src.data.airports import load_raw_flights
 from src.features import (
     add_airport_state_features,
@@ -19,10 +19,10 @@ from src.features import (
     build_rotation_table,
 )
 
-# Columns that are only known after the flight (or are identifiers) - never model inputs.
+# Identifiers and post-arrival information - never model inputs.
 NON_FEATURES = [
     "flight_date", "tail_number", "flight_number", "origin_state", "dest_state",
-    "crs_dep_time", "crs_arr_time", "dep_delay", "arr_delay", TARGET,
+    "crs_dep_time", "crs_arr_time", "arr_delay", TARGET,
 ]
 
 CATEGORICAL = ["carrier", "origin", "dest", "route"]
@@ -43,6 +43,8 @@ def build() -> pd.DataFrame:
     weather_cols = [c for c in df.columns if c.startswith(("origin_", "dest_")) and df[c].isna().any()]
     df[weather_cols] = df[weather_cols].fillna(df[weather_cols].median())
 
+    df["departed_late"] = (df["dep_delay"] >= 15).astype("int8")
+
     for c in CATEGORICAL:
         df[c] = df[c].astype("category")
 
@@ -50,8 +52,16 @@ def build() -> pd.DataFrame:
     return df
 
 
-def feature_columns(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if c not in NON_FEATURES]
+DEPARTURE_FEATURES = ["dep_delay", "departed_late"]
+
+
+def feature_columns(df: pd.DataFrame, prediction_point: str = PREDICTION_POINT) -> list[str]:
+    cols = [c for c in df.columns if c not in NON_FEATURES and c not in DEPARTURE_FEATURES]
+    if prediction_point == "departure":
+        cols += DEPARTURE_FEATURES
+    elif prediction_point != "pre_departure":
+        raise ValueError(f"unknown prediction point: {prediction_point}")
+    return cols
 
 
 def main():
