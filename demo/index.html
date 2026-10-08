@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight Delay Prediction</title>
+<meta name="description" content="Tuned XGBoost predicting 15+ minute arrival delays on held-out June 2023 US flights.">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f7f7f5; --surface: #ffffff; --ink: #0b0b0b; --ink-2: #52514e; --muted: #8a8984; --rule: #e4e3df;
+    --blue: #2a78d6; --orange: #eb6834; --good: #1a7f37; --bad: #c62828; --blue-soft: #e3eefb; --chip: #f0efec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #121211; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #8f8e86; --rule: #2e2e2b;
+      --blue: #3987e5; --orange: #d95926; --good: #4caf50; --bad: #ef5350; --blue-soft: #1d3150; --chip: #262624;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .sub { color: var(--ink-2); margin: 0 0 18px; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  .tile { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 14px; }
+  .tile b { display: block; font-size: 22px; }
+  .tile span { color: var(--ink-2); font-size: 12.5px; }
+  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .card, .tile { min-width: 0; }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+  label { font-size: 12.5px; color: var(--ink-2); display: flex; flex-direction: column; gap: 4px; }
+  select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); min-width: 120px; }
+  .check { flex-direction: row; align-items: center; gap: 6px; font-size: 14px; color: var(--ink); padding-bottom: 6px; }
+  #summary { margin: 12px 0 0; color: var(--ink-2); }
+  #summary b { color: var(--ink); }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .tablebox { max-height: 560px; overflow: auto; border: 1px solid var(--rule); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th { position: sticky; top: 0; background: var(--surface); text-align: left; font-weight: 600; color: var(--ink-2); padding: 8px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--chip); }
+  tbody tr.sel { background: var(--blue-soft); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .bar { display: inline-block; width: 46px; height: 6px; background: var(--chip); border-radius: 3px; margin-right: 6px; vertical-align: middle; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--blue); border-radius: 3px; }
+  .ok { color: var(--good); font-weight: 600; } .no { color: var(--bad); font-weight: 600; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; background: var(--chip); }
+  .pill.d { background: color-mix(in srgb, var(--orange) 18%, transparent); }
+  #detail h3 { margin: 0 0 4px; font-size: 17px; }
+  #detail .facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 13.5px; margin: 10px 0 6px; }
+  #detail .facts span:nth-child(odd) { color: var(--ink-2); }
+  .legend { display: flex; gap: 14px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+  svg text { fill: var(--ink-2); font-size: 11px; }
+  .note { font-size: 13px; color: var(--ink-2); }
+  a { color: var(--blue); }
+  @media (max-width: 860px) { .grid2 { grid-template-columns: minmax(0, 1fr); } .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 480px) { select { min-width: 0; } .controls label:not(.check) { flex: 1 1 30%; } h1 { font-size: 22px; } .tile b { font-size: 19px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>✈️ Flight Delay Prediction</h1>
+  <p class="sub">Will a US flight arrive 15+ minutes late? A tuned XGBoost model, predicting at gate pushback, replayed on
+    <b>June 2023</b>: 334,950 flights it never saw during training or tuning.</p>
+
+  <div class="tiles">
+    <div class="tile"><b>90.8%</b><span>Accuracy (June test)</span></div>
+    <div class="tile"><b>0.943</b><span>ROC-AUC</span></div>
+    <div class="tile"><b>0.885</b><span>Macro-F1</span></div>
+    <div class="tile"><b>70.7%</b><span>Baseline: always "on time"</span></div>
+  </div>
+
+  <div class="card">
+    <div class="controls">
+      <label>Date (June 2023)<select id="date"></select></label>
+      <label>Origin airport<select id="airport"></select></label>
+      <label>Carrier<select id="carrier"><option>All</option></select></label>
+      <label class="check"><input type="checkbox" id="mistakes"> Show only mistakes</label>
+    </div>
+    <p id="summary">Loading…</p>
+  </div>
+
+  <div class="grid2">
+    <div class="card" style="padding:0">
+      <div class="tablebox">
+        <table>
+          <thead><tr>
+            <th>Sched</th><th>Flight</th><th>To</th><th class="num">Dep delay</th><th>P(delay)</th>
+            <th>Predicted</th><th>Actual</th><th></th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" id="detail">
+      <h3 id="d-title">Select a flight</h3>
+      <div class="note" id="d-sub">Click a row to see how the model's delay risk changes with departure delay and weather.</div>
+      <div class="facts" id="d-facts"></div>
+      <svg id="chart" viewBox="0 0 420 260" width="100%" role="img" aria-label="Delay probability versus departure delay"></svg>
+      <div class="legend">
+        <span><i style="background:var(--blue)"></i>Real weather</span>
+        <span><i style="background:var(--orange)"></i>Thunderstorms at both airports</span>
+        <span><i style="background:var(--muted); height:0; border-top:2px dashed var(--muted)"></i>Decision threshold</span>
+      </div>
+      <p class="note">Each curve changes only the departure delay (and, for the orange curve, the weather). Every
+        other input stays at this flight's real values.</p>
+    </div>
+  </div>
+
+  <div class="card note">
+    <b style="color:var(--ink)">How this demo works.</b> The model is a tuned XGBoost classifier trained on Jan–Apr 2023
+    BTS flights joined with hourly airport weather, using 73 engineered features (time, route &amp; congestion,
+    aircraft rotation, airport state, weather, departure delay). It was tuned on May and evaluated once on June.
+    This page is static: every probability shown, including the what-if curves, was <b>precomputed by the real
+    model</b> for each June flight. It replays held-out 2023 data; it is not a live forecasting service.
+    Code, notebooks and full write-up:
+    <a href="https://github.com/prakash-nitc/FlightDelayPrediction" target="_blank" rel="noopener">github.com/prakash-nitc/FlightDelayPrediction</a>.
+  </div>
+</div>
+
+<script>
+const WX = ["clear/cloudy", "drizzle/fog", "rain", "heavy rain", "snow", "heavy snow", "thunderstorm"];
+let META, ROWS = [], SEL = null;
+const $ = (id) => document.getElementById(id);
+const hhmm = (t) => { t = t % 2400; return String(Math.floor(t / 100)).padStart(2, "0") + ":" + String(t % 100).padStart(2, "0"); };
+const R = (r) => ({ carrier: r[0], flight: r[1], dest: r[2], sched: r[3], dep: r[4], arr: r[5], actual: r[6],
+  p: r[7] / 1000, grid: r[8].map((x) => x / 1000), inbound: r[9], owx: r[10], dwx: r[11] });
+
+async function init() {
+  META = await (await fetch("meta.json")).json();
+  $("date").innerHTML = META.dates.map((d) => `<option ${d === "2023-06-15" ? "selected" : ""}>${d}</option>`).join("");
+  $("airport").innerHTML = META.airports.map((a) => `<option ${a === "ORD" ? "selected" : ""}>${a}</option>`).join("");
+  ["date", "airport"].forEach((id) => $(id).addEventListener("change", load));
+  ["carrier", "mistakes"].forEach((id) => $(id).addEventListener("change", render));
+  load();
+}
+
+async function load() {
+  $("summary").textContent = "Loading…";
+  const res = await fetch(`data/${$("date").value}/${$("airport").value}.json`);
+  ROWS = res.ok ? (await res.json()).map(R) : [];
+  const carriers = [...new Set(ROWS.map((r) => r.carrier))].sort();
+  $("carrier").innerHTML = ["All", ...carriers].map((c) => `<option>${c}</option>`).join("");
+  SEL = ROWS.find((r) => r.dep >= 10 && r.dep < 30) || ROWS[0] || null;
+  render();
+  const tr = document.querySelector('#rows tr.sel');
+  if (tr) tr.parentElement.parentElement.parentElement.scrollTop = Math.max(0, tr.offsetTop - 120);
+}
+
+function render() {
+  const thr = META.threshold, c = $("carrier").value, onlyMistakes = $("mistakes").checked;
+  const all = ROWS.filter((r) => c === "All" || r.carrier === c);
+  const correct = (r) => (r.p >= thr) === (r.actual === 1);
+  const shown = onlyMistakes ? all.filter((r) => !correct(r)) : all;
+  const acc = all.length ? all.filter(correct).length / all.length : 0;
+  const rate = all.length ? all.filter((r) => r.actual === 1).length / all.length : 0;
+  $("summary").innerHTML = all.length
+    ? `<b>${all.length}</b> departures from <b>${$("airport").value}</b> on ${$("date").value} · actual delay rate <b>${Math.round(rate * 100)}%</b> · model accuracy on these flights <b>${Math.round(acc * 100)}%</b>`
+    : "No flights for this selection.";
+  $("rows").innerHTML = shown.map((r, i) => {
+    const pred = r.p >= thr, ok = correct(r);
+    return `<tr data-i="${ROWS.indexOf(r)}" class="${r === SEL ? "sel" : ""}">
+      <td>${hhmm(r.sched)}</td><td>${r.carrier} ${r.flight}</td><td>${r.dest}</td>
+      <td class="num">${r.dep}</td>
+      <td><span class="bar"><i style="width:${Math.round(r.p * 100)}%"></i></span>${r.p.toFixed(3)}</td>
+      <td><span class="pill ${pred ? "d" : ""}">${pred ? "Delayed" : "On time"}</span></td>
+      <td>${r.actual ? "Delayed" : "On time"} <span class="note">(${r.arr > 0 ? "+" : ""}${r.arr})</span></td>
+      <td class="${ok ? "ok" : "no"}" title="${ok ? "correct" : "wrong"}">${ok ? "✓" : "✗"}</td></tr>`;
+  }).join("");
+  document.querySelectorAll("#rows tr").forEach((tr) => tr.addEventListener("click", () => {
+    SEL = ROWS[+tr.dataset.i]; render();
+  }));
+  detail();
+}
+
+function detail() {
+  const svg = $("chart");
+  if (!SEL) { svg.innerHTML = ""; return; }
+  const r = SEL, thr = META.threshold, G = META.grid, n = G.length;
+  $("d-title").textContent = `${r.carrier} ${r.flight} · ${$("airport").value} → ${r.dest} · ${hhmm(r.sched)}`;
+  $("d-sub").innerHTML = `Model with real inputs: <b>P(delay) = ${r.p.toFixed(3)}</b> → ${r.p >= thr ? "Delayed" : "On time"}. ` +
+    `Actually arrived <b>${r.arr > 0 ? "+" : ""}${r.arr} min</b> (${r.actual ? "delayed" : "on time"}).`;
+  $("d-facts").innerHTML = `<span>Departure delay</span><span>${r.dep} min</span>
+    <span>Inbound aircraft</span><span>${r.inbound === null ? "first flight of the day" : (r.inbound > 0 ? "+" : "") + r.inbound + " min on arrival"}</span>
+    <span>Weather</span><span>origin ${WX[r.owx]}, destination ${WX[r.dwx]}</span>`;
+  const W = 420, H = 260, L = 40, Rm = 12, T = 12, B = 34;
+  const x = (d) => L + (d - G[0]) / (G[n - 1] - G[0]) * (W - L - Rm);
+  const y = (p) => T + (1 - p) * (H - T - B);
+  let s = "";
+  [0, 0.25, 0.5, 0.75, 1].forEach((v) => {
+    s += `<line x1="${L}" x2="${W - Rm}" y1="${y(v)}" y2="${y(v)}" stroke="var(--rule)"/>`;
+    s += `<text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${Math.round(v * 100)}%</text>`;
+  });
+  G.forEach((d) => { s += `<text x="${x(d)}" y="${H - B + 16}" text-anchor="middle">${d}</text>`; });
+  s += `<text x="${(L + W - Rm) / 2}" y="${H - 4}" text-anchor="middle">departure delay (min)</text>`;
+  s += `<line x1="${L}" x2="${W - Rm}" y1="${y(thr)}" y2="${y(thr)}" stroke="var(--muted)" stroke-dasharray="4 4"/>`;
+  const line = (vals, color) => {
+    const pts = vals.map((p, i) => `${x(G[i])},${y(p)}`).join(" ");
+    let out = `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>`;
+    vals.forEach((p, i) => { out += `<circle cx="${x(G[i])}" cy="${y(p)}" r="4" fill="${color}" stroke="var(--surface)" stroke-width="2"><title>${G[i]} min late: P = ${p.toFixed(3)}</title></circle>`; });
+    return out;
+  };
+  s += line(r.grid.slice(n), "var(--orange)");
+  s += line(r.grid.slice(0, n), "var(--blue)");
+  if (r.dep >= G[0] && r.dep <= G[n - 1]) {
+    s += `<circle cx="${x(r.dep)}" cy="${y(r.p)}" r="6" fill="none" stroke="var(--ink)" stroke-width="2"><title>Actual: ${r.dep} min late, P = ${r.p.toFixed(3)}</title></circle>`;
+    s += `<text x="${x(r.dep) + 9}" y="${y(r.p) - 8}" style="fill:var(--ink)">actual</text>`;
+  }
+  svg.innerHTML = s;
+}
+
+init();
+</script>
+</body>
+</html>

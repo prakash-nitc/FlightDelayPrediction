@@ -21,3 +21,7 @@ models/*.json
 Thumbs.db
 .vscode/
 .idea/
+
+# Generated demo data (published to the Hugging Face Space)
+demo/data/
+demo/meta.json
