@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Data (downloaded by scripts, too large for git)
+data/raw/
+data/processed/
+data/interim/
+
+# Model artifacts
+models/*.joblib
+models/*.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
