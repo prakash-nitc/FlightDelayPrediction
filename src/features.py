@@ -39,3 +39,24 @@ def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
     days_next = np.abs((next_h - dates).astype("timedelta64[D]").astype(int))
     df["days_to_holiday"] = np.minimum(days_prev, days_next).clip(max=30)
     return df
+
+
+# --------------------------------------------------------------------------- #
+# Route & congestion features
+# --------------------------------------------------------------------------- #
+def add_route_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Route identity plus scheduled-traffic counts (known from the timetable)."""
+    df = df.copy()
+    df["route"] = df["origin"] + "_" + df["dest"]
+    df["is_interstate"] = (df["origin_state"] != df["dest_state"]).astype(np.int8)
+    # Scheduled block time vs. distance: padded schedules absorb small delays.
+    df["sched_speed_mph"] = df["distance"] / (df["crs_elapsed_time"] / 60)
+
+    # Scheduled departures out of the origin in the same local hour (airport congestion),
+    # and scheduled arrivals into the destination in the arrival hour.
+    df["origin_hourly_deps"] = df.groupby(["origin", "flight_date", "dep_hour"])["flight_number"].transform("size")
+    df["dest_hourly_arrs"] = df.groupby(["dest", "flight_date", "arr_hour"])["flight_number"].transform("size")
+    df["origin_daily_deps"] = df.groupby(["origin", "flight_date"])["flight_number"].transform("size")
+    df["carrier_daily_flights"] = df.groupby(["carrier", "flight_date"])["flight_number"].transform("size")
+    df["route_daily_flights"] = df.groupby(["route", "flight_date"])["flight_number"].transform("size")
+    return df
