@@ -172,3 +172,39 @@ def add_weather_features(df: pd.DataFrame, weather: pd.DataFrame) -> pd.DataFram
     df = df.merge(origin_w, on=["origin", "_dep_ts"], how="left")
     df = df.merge(dest_w, on=["dest", "_arr_ts"], how="left")
     return df.drop(columns=["_dep_ts", "_arr_ts"])
+
+
+# --------------------------------------------------------------------------- #
+# Airport state: how delayed is the airport right now?
+# --------------------------------------------------------------------------- #
+def _lagged_hourly_mean(df, airport_col, hour_col, value_col, lags=(1, 2)):
+    """Mean of `value_col` at the same airport/date over the previous `lags` hours.
+
+    Only strictly earlier hours are used, mirroring the live airport status
+    (e.g. FAA delay board) an operator would see before this departure.
+    """
+    hourly = (df.groupby([airport_col, "flight_date", hour_col])[value_col]
+                .agg(["sum", "count"]).reset_index())
+    total = pd.Series(0.0, index=df.index)
+    count = pd.Series(0.0, index=df.index)
+    for lag in lags:
+        key = df[[airport_col, "flight_date"]].assign(**{hour_col: df["dep_hour"] - lag})
+        m = key.merge(hourly, on=[airport_col, "flight_date", hour_col], how="left")
+        total += m["sum"].fillna(0).values
+        count += m["count"].fillna(0).values
+    return (total / count.replace(0, np.nan)), count
+
+
+def add_airport_state_features(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df["origin_recent_dep_delay"], df["origin_recent_deps"] = _lagged_hourly_mean(
+        df, "origin", "dep_hour", "dep_delay")
+    # Arrivals into the *destination* over the 2h before we leave - a congested
+    # destination often means ground-delay programs for inbound flights.
+    df["dest_recent_arr_delay"], df["dest_recent_arrs"] = _lagged_hourly_mean(
+        df.assign(_arr_h=df["arr_hour"]), "dest", "_arr_h", "arr_delay")
+    df["origin_recent_delayed_share"] = _lagged_hourly_mean(
+        df.assign(_late=(df["dep_delay"] >= 15).astype(float)), "origin", "dep_hour", "_late")[0]
+    for c in ["origin_recent_dep_delay", "dest_recent_arr_delay", "origin_recent_delayed_share"]:
+        df[c] = df[c].fillna(0)
+    return df
