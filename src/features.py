@@ -50,7 +50,8 @@ def add_route_features(df: pd.DataFrame) -> pd.DataFrame:
     df["route"] = df["origin"] + "_" + df["dest"]
     df["is_interstate"] = (df["origin_state"] != df["dest_state"]).astype(np.int8)
     # Scheduled block time vs. distance: padded schedules absorb small delays.
-    df["sched_speed_mph"] = df["distance"] / (df["crs_elapsed_time"] / 60)
+    # A few records have implausibly short scheduled times; cap at a realistic airliner speed.
+    df["sched_speed_mph"] = (df["distance"] / (df["crs_elapsed_time"] / 60)).clip(upper=650)
 
     # Scheduled departures out of the origin in the same local hour (airport congestion),
     # and scheduled arrivals into the destination in the arrival hour.
