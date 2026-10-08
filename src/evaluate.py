@@ -80,8 +80,8 @@ def plot_pr_curves(y_true, scores_by_model: dict, name="pr_curves"):
 
 
 def plot_model_comparison(results: pd.DataFrame, name="model_comparison"):
-    metrics = ["accuracy", "roc_auc", "f1", "f1_weighted"]
-    labels = ["Accuracy", "ROC-AUC", "F1 (delayed)", "F1 (weighted)"]
+    metrics = ["accuracy", "roc_auc", "f1_macro", "f1"]
+    labels = ["Accuracy", "ROC-AUC", "F1 (macro)", "F1 (delayed class)"]
     res = results.sort_values("roc_auc")
     fig, axes = plt.subplots(1, 4, figsize=(15, 3.8), sharey=True)
     for ax, m, label in zip(axes, metrics, labels):
