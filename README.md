@@ -1,10 +1,11 @@
-# ✈️ Flight Delay Prediction & Analytics Platform
+# ✈️ Flight Delay Prediction
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-1.4%2B-orange)
 ![XGBoost](https://img.shields.io/badge/XGBoost-2.x-brightgreen)
 ![Tests](https://img.shields.io/badge/tests-12%20passing-success)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
+[![Live demo](https://img.shields.io/badge/%F0%9F%A4%97%20live%20demo-Hugging%20Face%20Spaces-yellow)](https://huggingface.co/spaces/PrakashOO7/flight-delay-prediction)
 
 An end-to-end machine-learning pipeline that predicts whether a US domestic flight will **arrive 15+ minutes
 late**. It is built on **~2 million real flights** (BTS On-Time Performance, Jan–Jun 2023) joined with
@@ -14,6 +15,11 @@ The pipeline covers data acquisition, cleaning, EDA, feature engineering (time, 
 aircraft-rotation features), a six-model comparison, hyperparameter tuning, and evaluation on a held-out month.
 
 **Tech stack:** Python · Pandas · NumPy · Scikit-learn · XGBoost · Matplotlib / Seaborn · Jupyter · pytest
+
+**🔗 Live demo: [huggingface.co/spaces/PrakashOO7/flight-delay-prediction](https://huggingface.co/spaces/PrakashOO7/flight-delay-prediction)**
+- Pick any date and airport in June 2023 to see the model's prediction for every departure next to what
+  actually happened.
+- Click a flight to see how its delay risk changes with departure delay and weather.
 
 ---
 
@@ -268,6 +274,16 @@ flight_date carrier  flight_number origin dest  crs_dep_time  delay_probability 
  ...
 ```
 
+### Demo
+
+The live demo is a static page: [`demo/index.html`](demo/index.html).
+[`demo/build_data.py`](demo/build_data.py) uses the tuned model to precompute each June flight's probability and
+its what-if curves (departure delay × real weather vs thunderstorms).
+
+```bash
+python -m demo.build_data   # writes demo/data/ and demo/meta.json
+```
+
 ### Tests
 
 ```bash
@@ -307,6 +323,7 @@ The tests cover:
 │   ├── train.py                model comparison
 │   ├── tune.py                 hyperparameter search + final model
 │   └── predict.py              prediction CLI
+├── demo/                       static demo page + data builder (Hugging Face Space)
 ├── tests/                      pytest unit tests
 ├── Makefile
 └── requirements.txt
@@ -329,7 +346,7 @@ The tests cover:
 - Archived weather **forecasts** instead of observations
 - **Walk-forward validation** across several months
 - **SHAP** explanations for each prediction
-- A **REST API** (FastAPI) with live flight-status and weather feeds, plus drift monitoring
+- A live inference **API** (FastAPI) fed by real-time flight-status and weather-forecast data, plus drift monitoring
 - Regression on delay **minutes** alongside the classifier
 
 ## License
