@@ -61,3 +61,63 @@ def add_route_features(df: pd.DataFrame) -> pd.DataFrame:
     df["carrier_daily_flights"] = df.groupby(["carrier", "flight_date"])["flight_number"].transform("size")
     df["route_daily_flights"] = df.groupby(["route", "flight_date"])["flight_number"].transform("size")
     return df
+
+
+# --------------------------------------------------------------------------- #
+# Aircraft rotation ("previous flight delay") features
+# --------------------------------------------------------------------------- #
+ROTATION_KEYS = ["flight_date", "carrier", "flight_number", "origin", "tail_number"]
+
+
+def build_rotation_table(raw: pd.DataFrame) -> pd.DataFrame:
+    """Previous-leg information for every aircraft, computed on the *full* raw data.
+
+    Delays propagate through an aircraft's daily rotation: if the inbound aircraft
+    is late, the next departure usually is too. The inbound leg's status (and its
+    ETA) is known to the airline before the outbound flight departs, so these are
+    legitimate pre-departure features. Computed before the top-airport filter so
+    inbound legs from smaller airports are not lost.
+    """
+    r = raw[["FlightDate", "Reporting_Airline", "Flight_Number_Reporting_Airline", "Origin",
+             "Tail_Number", "CRSDepTime", "CRSArrTime", "DepDelay", "ArrDelay", "Cancelled"]].copy()
+    r = r.dropna(subset=["Tail_Number"])
+    r.columns = ["flight_date", "carrier", "flight_number", "origin", "tail_number",
+                 "crs_dep_time", "crs_arr_time", "dep_delay", "arr_delay", "cancelled"]
+    r["flight_date"] = pd.to_datetime(r["flight_date"])
+    r["crs_dep_min"] = (r["crs_dep_time"] % 2400 // 100) * 60 + r["crs_dep_time"] % 100
+    r["crs_arr_min"] = (r["crs_arr_time"] % 2400 // 100) * 60 + r["crs_arr_time"] % 100
+
+    r = r.sort_values(["tail_number", "flight_date", "crs_dep_min"])
+    g = r.groupby(["tail_number", "flight_date"], sort=False)
+
+    out = r[ROTATION_KEYS].copy()
+    out["leg_of_day"] = g.cumcount() + 1
+    out["prev_dep_delay"] = g["dep_delay"].shift(1)
+    out["prev_arr_delay"] = g["arr_delay"].shift(1)
+    out["prev_cancelled"] = g["cancelled"].shift(1)
+    prev_arr_min = g["crs_arr_min"].shift(1)
+    turnaround = r["crs_dep_min"] - prev_arr_min
+    # Overnight arrivals produce negative gaps; those aren't same-day turns.
+    out["turnaround_min"] = turnaround.where(turnaround >= 0)
+    # Projected buffer: scheduled ground time minus how late the inbound arrives.
+    # Negative => the aircraft lands after this flight was due to leave.
+    out["inbound_slack_min"] = out["turnaround_min"] - out["prev_arr_delay"].fillna(0)
+    # Cumulative arrival delay of the aircraft so far today (before this leg).
+    arr = r["arr_delay"].fillna(0)
+    out["cum_prev_arr_delay"] = arr.groupby([r["tail_number"], r["flight_date"]], sort=False).cumsum() - arr
+
+    out["is_first_leg"] = (out["leg_of_day"] == 1).astype(np.int8)
+    out["prev_cancelled"] = out["prev_cancelled"].fillna(0).astype(np.int8)
+    return out.drop_duplicates(ROTATION_KEYS)
+
+
+def add_rotation_features(df: pd.DataFrame, rotation: pd.DataFrame) -> pd.DataFrame:
+    rotation = rotation.astype({"flight_number": df["flight_number"].dtype})
+    out = df.merge(rotation, on=ROTATION_KEYS, how="left", validate="many_to_one")
+    # No inbound info (first leg, or inbound cancelled/diverted): flag it, treat as zero delay.
+    out["prev_leg_missing"] = out["prev_arr_delay"].isna().astype(np.int8)
+    for c in ["prev_dep_delay", "prev_arr_delay", "cum_prev_arr_delay"]:
+        out[c] = out[c].fillna(0)
+    out["turnaround_min"] = out["turnaround_min"].fillna(out["turnaround_min"].median())
+    out["inbound_slack_min"] = out["inbound_slack_min"].fillna(out["turnaround_min"])
+    return out
