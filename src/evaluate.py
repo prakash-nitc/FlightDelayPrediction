@@ -135,7 +135,7 @@ def plot_threshold_tradeoff(y_true, scores, chosen, name="threshold_tradeoff"):
                               ("f1", "F1", ps.AQUA), ("accuracy", "Accuracy", ps.VIOLET)]:
         ax.plot(df.index, df[col], label=label, color=color)
     ax.axvline(chosen, color=ps.TEXT_MUTED, lw=1, ls="--")
-    ax.text(chosen, 0.02, f" chosen = {chosen:.2f}", color=ps.TEXT_MUTED)
+    ax.text(chosen, 0.03, f" chosen = {chosen:.2f}", color=ps.TEXT_MUTED, transform=ax.get_xaxis_transform())
     ax.set_xlabel("Decision threshold")
     ax.yaxis.set_major_formatter(mtick.PercentFormatter(1))
     ax.set_title("Threshold trade-off (tuned XGBoost, test set)")
