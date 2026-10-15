@@ -22,6 +22,6 @@ tune:
 	$(PY) -m src.tune --prediction-point pre_departure
 
 test:
-	$(PY) -m pytest -q tests
+	$(PY) -m pytest
 
 all: data features train tune
