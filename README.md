@@ -254,6 +254,7 @@ make eda        # execute notebooks/01_eda.ipynb
 make train      # 6-model comparison (both prediction points)
 make tune       # randomized search + final XGBoost (both prediction points)
 make test       # unit tests
+make clean      # remove Python caches
 ```
 
 Without `make`, run the modules directly, e.g. `python -m src.train --prediction-point departure`.

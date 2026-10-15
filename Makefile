@@ -1,4 +1,4 @@
-.PHONY: data features eda train tune test all
+.PHONY: data features eda train tune test clean all
 
 PY ?= python
 
@@ -23,5 +23,10 @@ tune:
 
 test:
 	$(PY) -m pytest
+
+# Remove Python caches (keeps downloaded data, models and reports).
+clean:
+	find . -name "__pycache__" -type d -prune -exec rm -rf {} +
+	rm -rf .pytest_cache
 
 all: data features train tune
