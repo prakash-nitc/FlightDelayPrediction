@@ -275,6 +275,16 @@ flight_date carrier  flight_number origin dest  crs_dep_time  delay_probability 
  ...
 ```
 
+| Option | Meaning |
+|---|---|
+| `--date` | Flight date (required), e.g. `2023-06-15` |
+| `--origin` | Only flights from this airport, e.g. `ORD` |
+| `--carrier`, `--flight` | Look up one flight, e.g. `--carrier AA --flight 760` |
+| `--prediction-point` | `departure` (default) or `pre_departure` |
+| `--output` | Also save the predictions to a CSV file |
+
+Codes are case-insensitive.
+
 ### Demo
 
 The live demo is a static page: [`demo/index.html`](demo/index.html).
