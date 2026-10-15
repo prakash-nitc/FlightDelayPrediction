@@ -8,6 +8,7 @@ from src.features import (
     add_time_features,
     add_weather_features,
     build_rotation_table,
+    prepare_weather,
     weather_severity,
 )
 
@@ -64,6 +65,19 @@ def test_time_features_holiday_and_cyclical():
 def test_weather_severity_mapping():
     codes = pd.Series([0, 3, 53, 63, 65, 73, 75, 95, 999])
     assert weather_severity(codes).tolist() == [0, 0, 1, 2, 3, 4, 5, 6, 0]
+
+
+def test_weather_rolling_windows_stay_within_each_airport():
+    hours = pd.date_range("2023-03-01", periods=4, freq="h")
+    weather = pd.concat([
+        pd.DataFrame({"airport": ap, "time": hours, "precipitation": precip, "snowfall": 0.0,
+                      "wind_gusts_10m": 10.0, "weather_code": 0})
+        for ap, precip in [("BOS", [2.0] * 4), ("MIA", [0.0, 0.0, 0.0, 5.0])]
+    ])
+    w = prepare_weather(weather).set_index(["airport", "time"])
+    assert w.loc[("MIA", hours[0]), "precip_3h"] == 0    # no carry-over from BOS rows
+    assert w.loc[("BOS", hours[3]), "precip_3h"] == 6.0  # last 3 hours only
+    assert w.loc[("MIA", hours[3]), "precip_day"] == 5.0
 
 
 def test_weather_joins_origin_at_departure_and_dest_at_arrival():

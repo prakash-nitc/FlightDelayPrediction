@@ -306,6 +306,7 @@ The tests cover:
 - cleaning rules and the 15-minute target;
 - aircraft-rotation features: previous-leg delay, turnaround and inbound slack;
 - the red-eye weather join, where the flight lands the next calendar day;
+- rolling weather windows that never mix two airports;
 - no look-ahead in the airport-state features;
 - which columns each prediction point may use (no identifiers, target or, before departure, departure delay);
 - stratified sampling of the training data;
