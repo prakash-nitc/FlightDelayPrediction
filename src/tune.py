@@ -41,11 +41,13 @@ SEARCH_SPACE = {
 
 
 def base_xgb(**params) -> XGBClassifier:
+    """XGBoost with native categorical support; `params` come from the search space."""
     return XGBClassifier(tree_method="hist", enable_categorical=True, n_jobs=-1,
                          eval_metric="auc", random_state=RANDOM_STATE, **params)
 
 
 def search(train, valid, n_iter: int, train_rows: int, valid_rows: int):
+    """Randomized search scored on May; returns the best params and every configuration tried."""
     tr, va = train.sample(train_rows), valid.sample(valid_rows)
     X = pd.concat([tr.X, va.X])
     y = pd.concat([tr.y, va.y])

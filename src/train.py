@@ -32,6 +32,7 @@ def score(model, X, parallel: bool = False, chunks: int = 16) -> np.ndarray:
 
 
 def main(prediction_point: str = PREDICTION_POINT):
+    """Fit every model in the zoo and write the comparison table and plots."""
     train, valid, test, features = load_splits(prediction_point)
     nums, cats = numeric_and_categorical(features)
     print(f"prediction point: {prediction_point} | {len(features)} features | "

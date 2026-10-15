@@ -17,11 +17,13 @@ from src.config import MODELS_DIR, PREDICTION_POINT, PROCESSED_DIR, TARGET
 
 
 def load_model(prediction_point: str = PREDICTION_POINT):
+    """Tuned model, its feature list and the decision threshold chosen on May (saved by src.tune)."""
     bundle = joblib.load(MODELS_DIR / f"xgboost_tuned_{prediction_point}.joblib")
     return bundle["model"], bundle["features"], bundle["threshold"]
 
 
 def predict(df: pd.DataFrame, prediction_point: str = PREDICTION_POINT) -> pd.DataFrame:
+    """Flight identifiers with delay probability and 0/1 prediction (plus the actual outcome if known)."""
     model, features, threshold = load_model(prediction_point)
     proba = model.predict_proba(df[features])[:, 1]
     out = df[["flight_date", "carrier", "flight_number", "origin", "dest", "crs_dep_time"]].copy()
