@@ -340,7 +340,9 @@ They use small synthetic frames, so no data download is needed. GitHub Actions r
 │   └── predict.py              prediction CLI
 ├── demo/                       static demo page + data builder (Hugging Face Space)
 ├── tests/                      pytest unit tests
+├── .github/workflows/          CI: unit tests on every push
 ├── Makefile
+├── pyproject.toml              pytest configuration
 └── requirements.txt
 ```
 
