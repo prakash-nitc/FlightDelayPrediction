@@ -12,6 +12,7 @@ from pandas.tseries.holiday import USFederalHolidayCalendar
 # Time features
 # --------------------------------------------------------------------------- #
 def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Calendar and time-of-day features, including days to the nearest federal holiday."""
     df = df.copy()
     df["is_weekend"] = (df["day_of_week"] >= 6).astype(np.int8)
     df["day_of_year"] = df["flight_date"].dt.dayofyear
@@ -112,6 +113,7 @@ def build_rotation_table(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_rotation_features(df: pd.DataFrame, rotation: pd.DataFrame) -> pd.DataFrame:
+    """Attach previous-leg features from `build_rotation_table` and fill first legs."""
     rotation = rotation.astype({"flight_number": df["flight_number"].dtype})
     out = df.merge(rotation, on=ROTATION_KEYS, how="left", validate="many_to_one")
     # No inbound info (first leg, or inbound cancelled/diverted): flag it, treat as zero delay.
@@ -196,6 +198,7 @@ def _lagged_hourly_mean(df, airport_col, hour_col, value_col, lags=(1, 2)):
 
 
 def add_airport_state_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Recent delays at the origin and destination over the two hours before departure."""
     df = df.copy()
     df["origin_recent_dep_delay"], df["origin_recent_deps"] = _lagged_hourly_mean(
         df, "origin", "dep_hour", "dep_delay")
