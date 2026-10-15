@@ -29,6 +29,7 @@ CATEGORICAL = ["carrier", "origin", "dest", "route"]
 
 
 def build() -> pd.DataFrame:
+    """Join cleaned flights with rotation, airport-state and weather features."""
     t0 = time.time()
     df = pd.read_parquet(PROCESSED_DIR / "flights_clean.parquet")
     weather = pd.read_parquet(RAW_DIR / "weather_hourly.parquet")
@@ -56,6 +57,7 @@ DEPARTURE_FEATURES = ["dep_delay", "departed_late"]
 
 
 def feature_columns(df: pd.DataFrame, prediction_point: str = PREDICTION_POINT) -> list[str]:
+    """Model inputs for a prediction point; departure delay is only known at pushback."""
     cols = [c for c in df.columns if c not in NON_FEATURES and c not in DEPARTURE_FEATURES]
     if prediction_point == "departure":
         cols += DEPARTURE_FEATURES

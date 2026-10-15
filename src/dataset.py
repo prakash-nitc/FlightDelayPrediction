@@ -26,6 +26,7 @@ class Split:
 
 
 def load_splits(prediction_point: str = PREDICTION_POINT) -> tuple[Split, Split, Split, list[str]]:
+    """Train (Jan-Apr), validation (May) and test (June) splits, plus the feature list."""
     df = pd.read_parquet(PROCESSED_DIR / "features.parquet")
     features = feature_columns(df, prediction_point)
 
@@ -41,6 +42,7 @@ def load_splits(prediction_point: str = PREDICTION_POINT) -> tuple[Split, Split,
 
 
 def numeric_and_categorical(features: list[str]) -> tuple[list[str], list[str]]:
+    """Split feature names into numeric and categorical, preserving order."""
     cats = [c for c in features if c in CATEGORICAL]
     nums = [c for c in features if c not in CATEGORICAL]
     return nums, cats
