@@ -307,7 +307,11 @@ The tests cover:
 - aircraft-rotation features: previous-leg delay, turnaround and inbound slack;
 - the red-eye weather join, where the flight lands the next calendar day;
 - no look-ahead in the airport-state features;
-- the evaluation metrics and threshold selection.
+- which columns each prediction point may use (no identifiers, target or, before departure, departure delay);
+- stratified sampling of the training data;
+- the evaluation metrics, threshold selection and SVM scoring.
+
+They use small synthetic frames, so no data download is needed. GitHub Actions runs them on every push.
 
 ---
 
