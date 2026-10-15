@@ -32,6 +32,7 @@ def best_threshold(y_true, scores) -> float:
 
 
 def compute_metrics(y_true, scores, threshold: float) -> dict:
+    """Thresholded classification metrics plus threshold-free ROC-AUC and PR-AUC."""
     y_pred = (scores >= threshold).astype(int)
     return {
         "accuracy": accuracy_score(y_true, y_pred),
@@ -50,6 +51,7 @@ def compute_metrics(y_true, scores, threshold: float) -> dict:
 # Plots
 # --------------------------------------------------------------------------- #
 def plot_roc_curves(y_true, scores_by_model: dict, name="roc_curves"):
+    """One ROC curve per model on the same axes; `scores_by_model` maps name -> scores."""
     fig, ax = plt.subplots(figsize=(6, 5.5))
     for i, (model, s) in enumerate(scores_by_model.items()):
         fpr, tpr, _ = roc_curve(y_true, s)
@@ -65,6 +67,7 @@ def plot_roc_curves(y_true, scores_by_model: dict, name="roc_curves"):
 
 
 def plot_pr_curves(y_true, scores_by_model: dict, name="pr_curves"):
+    """Precision-recall curves; the dashed line is the base delay rate (a random model)."""
     fig, ax = plt.subplots(figsize=(6, 5.5))
     for i, (model, s) in enumerate(scores_by_model.items()):
         p, r, _ = precision_recall_curve(y_true, s)
@@ -80,6 +83,7 @@ def plot_pr_curves(y_true, scores_by_model: dict, name="pr_curves"):
 
 
 def plot_model_comparison(results: pd.DataFrame, name="model_comparison"):
+    """Side-by-side bars of the headline metrics, one row per model (index of `results`)."""
     metrics = ["accuracy", "roc_auc", "f1_macro", "f1"]
     labels = ["Accuracy", "ROC-AUC", "F1 (macro)", "F1 (delayed class)"]
     res = results.sort_values("roc_auc")
@@ -99,6 +103,7 @@ def plot_model_comparison(results: pd.DataFrame, name="model_comparison"):
 
 
 def plot_confusion_matrix(y_true, y_pred, title, name="confusion_matrix"):
+    """Counts in each cell, coloured and labelled by the share of the actual class (row)."""
     cm = confusion_matrix(y_true, y_pred)
     cm_norm = cm / cm.sum(axis=1, keepdims=True)
     fig, ax = plt.subplots(figsize=(4.8, 4.2))
@@ -117,6 +122,7 @@ def plot_confusion_matrix(y_true, y_pred, title, name="confusion_matrix"):
 
 
 def plot_feature_importance(importance: pd.Series, title, name="feature_importance", top=20):
+    """Horizontal bars for the `top` most important features."""
     imp = importance.sort_values().tail(top)
     fig, ax = plt.subplots(figsize=(7, 0.3 * top + 1))
     ax.barh(imp.index, imp.values, color=ps.BLUE, height=0.65)
@@ -127,6 +133,7 @@ def plot_feature_importance(importance: pd.Series, title, name="feature_importan
 
 
 def plot_threshold_tradeoff(y_true, scores, chosen, name="threshold_tradeoff"):
+    """Precision, recall, F1 and accuracy across thresholds, marking the one chosen on May."""
     thresholds = np.linspace(0.05, 0.95, 91)
     rows = [compute_metrics(y_true, scores, t) for t in thresholds]
     df = pd.DataFrame(rows, index=thresholds)
