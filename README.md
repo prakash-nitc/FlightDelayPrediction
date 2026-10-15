@@ -3,7 +3,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-1.4%2B-orange)
 ![XGBoost](https://img.shields.io/badge/XGBoost-2.x-brightgreen)
-![Tests](https://img.shields.io/badge/tests-19%20passing-success)
+[![Tests](https://github.com/prakash-nitc/FlightDelayPrediction/actions/workflows/tests.yml/badge.svg)](https://github.com/prakash-nitc/FlightDelayPrediction/actions/workflows/tests.yml)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 [![Live demo](https://img.shields.io/badge/%F0%9F%A4%97%20live%20demo-Hugging%20Face%20Spaces-yellow)](https://huggingface.co/spaces/PrakashOO7/flight-delay-prediction)
 
