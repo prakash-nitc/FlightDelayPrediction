@@ -4,9 +4,9 @@ Look up a specific flight in the feature table and print its delay probability:
 
     python -m src.predict --date 2023-06-15 --carrier AA --flight 1234
 
-Or score every flight on a date at one origin:
+Or score every flight on a date at one origin, and save the result:
 
-    python -m src.predict --date 2023-06-15 --origin ORD
+    python -m src.predict --date 2023-06-15 --origin ORD --output ord_0615.csv
 """
 import argparse
 
@@ -39,6 +39,7 @@ def main():
     p.add_argument("--flight", type=int, help="flight number (combine with --carrier)")
     p.add_argument("--origin", type=str.upper, help="origin airport code, e.g. ORD")
     p.add_argument("--prediction-point", choices=["departure", "pre_departure"], default=PREDICTION_POINT)
+    p.add_argument("--output", help="also write the predictions to this CSV file")
     args = p.parse_args()
 
     df = pd.read_parquet(PROCESSED_DIR / "features.parquet",
@@ -52,8 +53,12 @@ def main():
     if df.empty:
         raise SystemExit("No matching flights in the feature table.")
 
+    pred = predict(df, args.prediction_point).sort_values("crs_dep_time")
     pd.set_option("display.width", 140)
-    print(predict(df, args.prediction_point).sort_values("crs_dep_time").to_string(index=False))
+    print(pred.to_string(index=False))
+    if args.output:
+        pred.to_csv(args.output, index=False)
+        print(f"[save] {args.output}")
 
 
 if __name__ == "__main__":
