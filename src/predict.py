@@ -33,11 +33,11 @@ def predict(df: pd.DataFrame, prediction_point: str = PREDICTION_POINT) -> pd.Da
 
 
 def main():
-    p = argparse.ArgumentParser()
-    p.add_argument("--date", required=True)
-    p.add_argument("--carrier")
-    p.add_argument("--flight", type=int)
-    p.add_argument("--origin")
+    p = argparse.ArgumentParser(description="Score flights from the feature table with the tuned model.")
+    p.add_argument("--date", required=True, help="flight date, YYYY-MM-DD")
+    p.add_argument("--carrier", help="carrier code, e.g. AA")
+    p.add_argument("--flight", type=int, help="flight number (combine with --carrier)")
+    p.add_argument("--origin", help="origin airport code, e.g. ORD")
     p.add_argument("--prediction-point", choices=["departure", "pre_departure"], default=PREDICTION_POINT)
     args = p.parse_args()
 
