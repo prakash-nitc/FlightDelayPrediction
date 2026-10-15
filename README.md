@@ -89,6 +89,10 @@ All charts are in [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb).
 Scope is flights between the **50 busiest airports** (60% of all traffic), which leaves **1,977,481 flights**
 after cleaning. Nothing is committed to the repo: the download scripts fetch everything.
 
+**Data credits:** weather data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0), based on the
+ECMWF ERA5 reanalysis from the Copernicus Climate Change Service. Flight records are public data from the
+US Bureau of Transportation Statistics. Airport coordinates come from OurAirports (public domain).
+
 ---
 
 ## 🔧 Pipeline
