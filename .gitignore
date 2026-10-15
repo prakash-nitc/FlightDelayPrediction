@@ -6,6 +6,8 @@ __pycache__/
 venv/
 .ipynb_checkpoints/
 .pytest_cache/
+.coverage
+htmlcov/
 
 # Data (downloaded by scripts, too large for git)
 data/raw/
